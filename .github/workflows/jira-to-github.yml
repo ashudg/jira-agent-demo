@@ -38,10 +38,14 @@ jobs:
           JQL='project = KAN AND status = "To Do" AND labels = agent-ready AND labels != gh-synced'
           ENCODED_JQL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$JQL'))")
 
+          echo "JQL: $JQL"
+          echo "Encoded: $ENCODED_JQL"
           RESPONSE=$(curl -s -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
             -H "Accept: application/json" \
-            "${JIRA_BASE_URL}/rest/api/3/search?jql=${ENCODED_JQL}&fields=summary,description,key")
+            "${JIRA_BASE_URL}/rest/api/3/search?jql=${ENCODED_JQL}&fields=summary,description,key,status,labels")
 
+          echo "Total results: $(echo "$RESPONSE" | jq '.total // 0')"
+          echo "Errors: $(echo "$RESPONSE" | jq '.errorMessages // empty')"
           echo "issues=$(echo "$RESPONSE" | jq -c '.issues // []')" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Issues and assign Copilot
