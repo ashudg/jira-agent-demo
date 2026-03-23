@@ -58,28 +58,36 @@ jobs:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_ISSUES: ${{ steps.jira.outputs.issues }}
         run: |
-          echo '${{ steps.jira.outputs.issues }}' | jq -c '.[]' | while read -r issue; do
+          echo "$JIRA_ISSUES" | jq -c '.[]' | while read -r issue; do
             KEY=$(echo "$issue" | jq -r '.key')
             SUMMARY=$(echo "$issue" | jq -r '.fields.summary')
             # Render Jira ADF description to plain text (basic fallback)
-            DESC=$(echo "$issue" | jq -r '.fields.description.content[]?.content[]?.text // empty' | head -50)
+            DESC=$(echo "$issue" | jq -r '[.fields.description.content[]?.content[]?.text // empty] | join(" ")' | head -50)
 
-            BODY="**Jira Issue:** [${KEY}](${JIRA_BASE_URL}/browse/${KEY})
+            # Build issue body safely via printf
+            BODY=$(printf '**Jira Issue:** [%s](%s/browse/%s)\n\n%s\n\n---\n_Synced from Jira. Do not edit the Jira key above._' \
+              "$KEY" "$JIRA_BASE_URL" "$KEY" "$DESC")
 
-          ${DESC}
-
-          ---
-          _Synced from Jira. Do not edit the Jira key above._"
-
-            # Create GitHub Issue
+            # Create GitHub Issue (without assignee — bot must be assigned via API)
             GH_ISSUE_URL=$(gh issue create \
               --title "[${KEY}] ${SUMMARY}" \
-              --body "${BODY}" \
-              --label "jira-sync" \
-              --assignee "copilot-swe-agent[bot]" 2>&1 || true)
+              --body "$BODY" \
+              --label "jira-sync" 2>&1) || true
 
             echo "Created: ${GH_ISSUE_URL}"
+
+            # Extract issue number from URL
+            ISSUE_NUMBER=$(echo "$GH_ISSUE_URL" | grep -oE '[0-9]+$')
+
+            # Assign Copilot coding agent via REST API
+            if [ -n "$ISSUE_NUMBER" ]; then
+              gh api "repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+                --method POST \
+                -f "assignees[]=copilot-swe-agent[bot]" 2>&1 || \
+              echo "Warning: Could not assign coding agent. Assign manually on GitHub."
+            fi
 
             # Mark Jira issue as synced by adding label
             curl -s -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
