@@ -33,9 +33,9 @@ jobs:
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
         run: |
-          # JQL: project = DEMO, status = "To Do", label = agent-ready,
+          # JQL: project = KAN, status = "To Do", label = agent-ready,
           # not already synced (no "gh-synced" label).
-          JQL='project = DEMO AND status = "To Do" AND labels = agent-ready AND labels != gh-synced'
+          JQL='project = KAN AND status = "To Do" AND labels = agent-ready AND labels != gh-synced'
           ENCODED_JQL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$JQL'))")
 
           RESPONSE=$(curl -s -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
