@@ -88,11 +88,16 @@ jobs:
             # Extract issue number from URL
             ISSUE_NUMBER=$(echo "$GH_ISSUE_URL" | grep -oE '[0-9]+$')
 
-            # Assign Copilot coding agent via REST API
+            # Assign Copilot coding agent via REST API (requires a user PAT via GH_PAT secret)
             if [ -n "$ISSUE_NUMBER" ]; then
-              gh api "repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+              ASSIGN_BODY=$(printf '{"assignees":["copilot-swe-agent[bot]"],"agent_assignment":{"target_repo":"%s","base_branch":"main"}}' \
+                "${{ github.repository }}")
+              echo "$ASSIGN_BODY" | GH_TOKEN="${{ secrets.GH_PAT }}" gh api \
                 --method POST \
-                -f "assignees[]=copilot-swe-agent[bot]" 2>&1 || \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+                --input - || \
               echo "Warning: Could not assign coding agent. Assign manually on GitHub."
             fi
 
