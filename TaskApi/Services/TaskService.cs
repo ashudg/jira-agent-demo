@@ -28,17 +28,19 @@ public class TaskService
 
     public PagedResult<TaskItem> GetAll(int page, int pageSize)
     {
+        if (page < 1)
+            return new PagedResult<TaskItem>
+            {
+                Items = [],
+                TotalCount = 0,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = 0
+            };
+
         var totalCount = _tasks.Count;
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
-        // BUG: Off-by-one — should be (totalCount + pageSize - 1) / pageSize
-        // or (int)Math.Ceiling((double)totalCount / pageSize).
-        // Current calculation returns 0 total pages when there are items
-        // that don't fill a complete page.
-        var totalPages = totalCount / pageSize;
-
-        // BUG: Skip calculation uses 0-based page but API consumer
-        // expects 1-based. Page 1 skips 0 items — that works.
-        // But page 0 is not rejected and returns the same as page 1.
         var items = _tasks
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

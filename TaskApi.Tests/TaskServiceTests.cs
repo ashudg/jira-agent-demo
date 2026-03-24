@@ -23,7 +23,48 @@ public class TaskServiceTests
         Assert.Null(service.GetById(999));
     }
 
-    // TODO: No tests for pagination, validation, or status updates.
-    // This is intentionally sparse — a Jira issue will ask the coding
-    // agent to add comprehensive test coverage.
+    [Fact]
+    public void GetAll_TotalPages_UsesCeilingDivision()
+    {
+        var service = new TaskService();
+        service.Create(new CreateTaskRequest { Title = "T1" });
+        service.Create(new CreateTaskRequest { Title = "T2" });
+        service.Create(new CreateTaskRequest { Title = "T3" });
+
+        var result = service.GetAll(page: 1, pageSize: 2);
+
+        Assert.Equal(2, result.TotalPages);
+    }
+
+    [Fact]
+    public void GetAll_PageLessThanOne_ReturnsEmptyResult()
+    {
+        var service = new TaskService();
+        service.Create(new CreateTaskRequest { Title = "T1" });
+
+        var result = service.GetAll(page: 0, pageSize: 10);
+
+        Assert.Empty(result.Items);
+        Assert.Equal(0, result.TotalCount);
+        Assert.Equal(0, result.TotalPages);
+    }
+
+    [Fact]
+    public void GetAll_ReturnsCorrectItemsForPage()
+    {
+        var service = new TaskService();
+        service.Create(new CreateTaskRequest { Title = "T1" });
+        service.Create(new CreateTaskRequest { Title = "T2" });
+        service.Create(new CreateTaskRequest { Title = "T3" });
+
+        var page1 = service.GetAll(page: 1, pageSize: 2);
+        var page2 = service.GetAll(page: 2, pageSize: 2);
+
+        Assert.Equal(2, page1.Items.Count);
+        Assert.Equal("T1", page1.Items[0].Title);
+        Assert.Equal("T2", page1.Items[1].Title);
+
+        Assert.Single(page2.Items);
+        Assert.Equal("T3", page2.Items[0].Title);
+    }
 }
